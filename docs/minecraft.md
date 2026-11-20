@@ -9,10 +9,12 @@ Use the same setup on a workstation to reproduce the server launch.
 
 Install the system packages on the server. OpenJDK 8 and Xvfb are available
 from Ubuntu's Universe repository.
+MineRL ships LWJGL 2, which calls the `xrandr` executable from
+`x11-xserver-utils` to discover display modes.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y openjdk-8-jre-headless build-essential xvfb xauth \
+sudo apt-get install -y openjdk-8-jre-headless build-essential xvfb xauth x11-xserver-utils \
   libgl1 libglx-mesa0 libgl1-mesa-dri libxrandr2 libxcursor1 libxi6 libxxf86vm1
 ```
 
