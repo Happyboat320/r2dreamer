@@ -179,7 +179,7 @@ class ProcessPipeWorker:
         except (AttributeError, OSError):
             pass  # The connection was already closed.
         try:
-            self._process.join(0.1)
+            self._process.join(5)
             if self._process.exitcode is None:
                 try:
                     os.kill(self._process.pid, 9)
@@ -240,6 +240,9 @@ class ProcessPipeWorker:
             print(f"Error inside process worker: {stacktrace}.", flush=True)
             pipe.send((Message.ERROR, callid, stacktrace))
         finally:
+            if state is not None:
+                with contextlib.suppress(Exception):
+                    state.close()
             with contextlib.suppress(Exception):
                 pipe.close()
 

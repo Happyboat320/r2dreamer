@@ -1,0 +1,19 @@
+task: minecraft_diamond
+steps: 1e8
+env_num: 1
+eval_episode_num: 0
+action_repeat: 1
+train_ratio: 16
+time_limit: 36000
+
+seed: ${seed}
+device: ${device}
+
+size: [64, 64]
+break_speed: 100.0
+encoder:
+  mlp_keys: '^(inventory|inventory_max|equipped|health|hunger|breath|obs_reward)$'
+  cnn_keys: '^image$'
+decoder:
+  mlp_keys: '^(inventory|inventory_max|equipped|health|hunger|breath)$'
+  cnn_keys: '^image$'

@@ -8,6 +8,10 @@ def make_envs(config):
 
     if suite == "isaaclab":
         return _make_isaaclab_envs(config)
+    if suite == "minecraft":
+        from .minecraft_setup import configure_minecraft
+
+        configure_minecraft()
 
     def env_constructor(idx):
         return lambda: make_env(config, idx)
@@ -90,6 +94,18 @@ def make_env(config, id):
 
         env = crafter.Crafter(task, config.size, seed=config.seed + id)
         env = wrappers.OneHotAction(env)
+    elif suite == "minecraft":
+        from .minecraft import MinecraftDiamond
+
+        if task != "diamond":
+            raise ValueError(f"Unsupported Minecraft task: {task}")
+        env = MinecraftDiamond(
+            size=config.size,
+            repeat=config.action_repeat,
+            break_speed=config.break_speed,
+            seed=config.seed + id,
+        )
+        env = wrappers.RewardObs(wrappers.OneHotAction(env))
     elif suite == "metaworld":
         import envs.metaworld as metaworld
 

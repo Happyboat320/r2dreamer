@@ -47,6 +47,7 @@ At the moment, the following benchmarks are available in this repository.
 | [DMC Subtle](envs/dmc_subtle.py) | Image | Continuous |1M| DeepMind Control Suite with tiny task-relevant objects. |
 | [Atari 100k](https://github.com/Farama-Foundation/Arcade-Learning-Environment) | Image | Discrete |400K| 26 Atari games. |
 | [Crafter](https://github.com/danijar/crafter) | Image | Discrete |1M| Survival environment to evaluates diverse agent abilities.|
+| [Minecraft Diamond](https://github.com/minerllabs/minerl) | Image and State | Discrete |100M| Collect resources and craft tools to obtain a diamond. |
 | [Memory Maze](https://github.com/jurgisp/memory-maze) | Image |Discrete |100M| 3D mazes to evaluate RL agents' long-term memory.|
 | [IsaacLab](https://github.com/isaac-sim/IsaacLab) | State / Image | Continuous | 0.5M–1M | GPU-parallelized robotic simulation. |
 
@@ -55,6 +56,28 @@ Use Hydra to select a benchmark and a specific task using `env` and `env.task`, 
 ```bash
 python3 train.py ... env=dmc_vision env.task=dmc_walker_walk
 ```
+
+## Minecraft Diamond
+
+The patched MineRL wheel targets Linux x86-64 and CPython 3.11. Use a dedicated
+environment because MineRL requires Gym 0.23.1. Install Java 8 and make its
+`java` executable available on `PATH`. Minecraft also needs an X display.
+For an SSH-only machine, follow the [headless Minecraft setup](docs/minecraft.md).
+
+From this repository directory:
+
+```bash
+uv venv --python 3.11 ../.venv-minecraft
+source ../.venv-minecraft/bin/activate
+uv pip install -e . cloudpickle \
+  https://github.com/NM512/minerl/releases/download/v0.4.4-patched/minerl_mirror-0.4.4-cp311-cp311-linux_x86_64.whl
+python train.py env=minecraft model.rep_loss=dreamer
+```
+
+The preset starts one environment with separate evaluation disabled. Set
+`env.env_num=16` to use the legacy PyTorch parallelism setting. For R2-Dreamer,
+set `model.rep_loss=r2dreamer`. Startup applies the benchmark rendering settings
+to the MineRL installation in the active environment.
 
 ## Headless rendering
 
