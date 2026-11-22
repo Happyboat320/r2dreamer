@@ -20,6 +20,23 @@ Run training on default settings:
 python3 train.py logdir=./logdir/test
 ```
 
+Training updates `latest.pt` every 1,000,000 environment steps and at the
+end of the run. Each save replaces the previous checkpoint, including its replay
+data. Set `trainer.save_every=0` to save only at the end or
+`trainer.eval_every=0` to skip evaluation. Both intervals use environment steps.
+
+```bash
+python3 train.py logdir=./logdir/test trainer.save_every=50000 trainer.eval_every=10000
+```
+
+To resume, repeat the original configuration overrides and pass the checkpoint
+path. The step budget is the total for the run. The agent, optimizer, and replay
+are restored, and the environments start fresh episodes.
+
+```bash
+python3 train.py logdir=./logdir/test resume=./logdir/test/latest.pt
+```
+
 Monitoring results:
 ```bash
 tensorboard --logdir ./logdir

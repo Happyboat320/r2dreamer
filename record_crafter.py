@@ -39,7 +39,7 @@ def main():
     env = make_env(config.env, 0)
     try:
         agent = Dreamer(config.model, env.observation_space, env.action_space).to(config.device)
-        checkpoint = torch.load(args.run / 'latest.pt', map_location=config.device, weights_only=False)
+        checkpoint = torch.load(args.run / 'latest.pt', map_location='cpu', mmap=True, weights_only=False)
         agent.load_state_dict(checkpoint['agent_state_dict'])
         agent.eval()
         obs = env.reset()

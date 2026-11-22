@@ -6,6 +6,7 @@ import warnings
 import hydra
 import torch
 
+import checkpoint
 import tools
 from buffer import Buffer
 from dreamer import Dreamer
@@ -49,13 +50,9 @@ def main(config):
     ).to(config.device)
 
     policy_trainer = OnlineTrainer(config.trainer, replay_buffer, logger, logdir, train_envs, eval_envs)
+    if config.resume is not None:
+        checkpoint.load(pathlib.Path(config.resume).expanduser(), agent, policy_trainer)
     policy_trainer.begin(agent)
-
-    items_to_save = {
-        "agent_state_dict": agent.state_dict(),
-        "optims_state_dict": tools.recursively_collect_optim_state_dict(agent),
-    }
-    torch.save(items_to_save, logdir / "latest.pt")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ defaults:
   - _self_
 
 logdir: logdir/${now:%Y-%m-%d}/${now:%H-%M-%S}
+resume: null  # Path to a training checkpoint.
 seed: 0
 deterministic_run: False
 device: 'cuda:0'
@@ -30,6 +31,7 @@ trainer:
   steps: ${env.steps}
   pretrain: 0
   eval_every: 1e4
+  save_every: 1e6  # Environment steps between saves. Zero saves only at the end.
   eval_episode_num: ${env.eval_episode_num}
   batch_size: ${batch_size}
   batch_length: ${batch_length}

@@ -248,6 +248,23 @@ class Dreamer(nn.Module):
         self.clone_and_freeze()
         return self
 
+    def training_state_dict(self):
+        state = {
+            "scheduler": self._scheduler.state_dict(),
+            "slow_value_updates": self._slow_value_updates,
+            "nonfinite": (self._nf_tensors, self._nf_skipped, self._nf_streak),
+        }
+        if self.rep_loss == "dreamerpro":
+            state["ema_updates"] = self._ema_updates
+        return state
+
+    def load_training_state_dict(self, state):
+        self._scheduler.load_state_dict(state["scheduler"])
+        self._slow_value_updates = state["slow_value_updates"]
+        self._nf_tensors, self._nf_skipped, self._nf_streak = state["nonfinite"]
+        if self.rep_loss == "dreamerpro":
+            self._ema_updates = state["ema_updates"]
+
     @torch.no_grad()
     def act(self, obs, state, eval=False):
         """Policy inference step, in COMPUTE_DTYPE like the rest of the model."""

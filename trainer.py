@@ -1,5 +1,6 @@
 import torch
 
+import checkpoint
 import tools
 
 
@@ -7,11 +8,15 @@ class OnlineTrainer:
     def __init__(self, config, replay_buffer, logger, logdir, train_envs, eval_envs):
         self.replay_buffer = replay_buffer
         self.logger = logger
+        self.checkpoint_path = logdir / "latest.pt"
         self.train_envs = train_envs
         self.eval_envs = eval_envs
         self.steps = int(config.steps)
         self.pretrain = int(config.pretrain)
         self.eval_every = int(config.eval_every)
+        self.save_every = int(config.save_every)
+        if self.save_every < 0:
+            raise ValueError("trainer.save_every must be nonnegative")
         self.eval_episode_num = int(config.eval_episode_num)
         self.video_pred_log = bool(config.video_pred_log)
         self.params_hist_log = bool(config.params_hist_log)
@@ -23,6 +28,22 @@ class OnlineTrainer:
         self._should_log = tools.Every(config.update_log_every)
         self._should_eval = tools.Every(self.eval_every)
         self._action_repeat = config.action_repeat
+        self.step = 0
+        self.update_count = 0
+
+    def state_dict(self):
+        return {
+            "step": self.step,
+            "update_count": self.update_count,
+            "pretrain_pending": self._should_pretrain._once,
+            "last_update_step": self._updates_needed._last,
+        }
+
+    def load_state_dict(self, state):
+        self.step = state["step"]
+        self.update_count = state["update_count"]
+        self._should_pretrain._once = state["pretrain_pending"]
+        self._updates_needed._last = state["last_update_step"]
 
     def eval(self, agent, train_step):
         """Run evaluation episodes.
@@ -107,8 +128,8 @@ class OnlineTrainer:
         """
         envs = self.train_envs
         video_cache = []
-        step = self.replay_buffer.count() * self._action_repeat
-        update_count = 0
+        step = self.step
+        last_saved_step = None
         # (B,)
         done = torch.ones(envs.env_num, dtype=torch.bool, device=agent.device)
         returns = torch.zeros(envs.env_num, dtype=torch.float32, device=agent.device)
@@ -121,6 +142,7 @@ class OnlineTrainer:
         # (B, A)
         act = agent_state["prev_action"].clone()
         while step < self.steps:
+            prev_step = step
             # Evaluation
             if self._should_eval(step) and self.eval_episode_num > 0 and self.eval_envs is not None:
                 self.eval(agent, step)
@@ -174,12 +196,12 @@ class OnlineTrainer:
                     update_num = self._updates_needed(step)
                 for _ in range(update_num):
                     train_metrics.add(agent.update(self.replay_buffer))
-                update_count += update_num
+                self.update_count += update_num
                 # Log training metrics
                 if self._should_log(step):
                     for name, value in train_metrics.mean().items():
                         self.logger.scalar(f"train/{name}", value)
-                    self.logger.scalar("train/opt/updates", update_count)
+                    self.logger.scalar("train/opt/updates", self.update_count)
                     if self.video_pred_log:
                         data, _, initial = self.replay_buffer.sample(prefer_online=False)
                         self.logger.video("open_loop", tools.to_np(agent.video_pred(data, initial)))
@@ -187,3 +209,12 @@ class OnlineTrainer:
                         for name, param in agent._named_params.items():
                             self.logger.histogram(name, tools.to_np(param))
                     self.logger.write(step, fps=True)
+
+            self.step = step
+            # A vectorized environment can cross a save boundary without landing on it.
+            if self.save_every and step // self.save_every > prev_step // self.save_every:
+                checkpoint.save(self.checkpoint_path, agent, self)
+                last_saved_step = step
+
+        if step != last_saved_step:
+            checkpoint.save(self.checkpoint_path, agent, self)

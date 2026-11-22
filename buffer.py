@@ -120,3 +120,34 @@ class Buffer:
         if self._buffer.storage.shape is None:
             return 0
         return self._buffer.storage.shape.numel()
+
+    def state_dict(self):
+        storage = self._buffer.storage
+        if not len(storage):
+            return None
+        data = storage[:]
+        if len(storage) < storage.max_size:
+            # Copy just the used rows. Saving a slice would serialize its entire backing allocation.
+            data = data.apply(lambda tensor: tensor.to("cpu", copy=True), device="cpu")
+        return {
+            "data": data.state_dict(keep_vars=True),
+            "cursor": self._buffer.write_count % len(data),
+        }
+
+    def load_state_dict(self, state, env_num):
+        if state is None:
+            return
+        data = TensorDict().load_state_dict(state["data"], strict=False, assign=True)
+        rows, saved_env_num = data.shape
+        if saved_env_num != env_num:
+            raise ValueError(f"Checkpoint replay has {saved_env_num} environments, expected {env_num}")
+        capacity = (int(self._buffer.storage.max_size) + env_num - 1) // env_num
+        if rows > capacity:
+            raise ValueError("buffer.max_size is too small for the checkpoint replay")
+
+        # Reinsert the oldest rows first. Online windows start fresh with the reset environments.
+        cursor = state["cursor"]
+        for part in (data[cursor:], data[:cursor]):
+            for start in range(0, len(part), 256):
+                batch = part[start : start + 256].to(self.storage_device)
+                self._buffer.extend(batch.transpose(0, 1))
