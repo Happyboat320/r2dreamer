@@ -20,9 +20,10 @@ Run training on default settings:
 python3 train.py logdir=./logdir/test
 ```
 
-Training updates `latest.pt` every 1,000,000 environment steps and at the
-end of the run. Each save replaces the previous checkpoint, including its replay
-data. Set `trainer.save_every=0` to save only at the end or
+Training saves every 1,000,000 environment steps and at the end of the run.
+Each save archives model weights in `checkpoints/step_<step>.pt` and updates
+`latest.pt`, which holds the replay data and training state for resuming.
+Set `trainer.save_every=0` to save only at the end or
 `trainer.eval_every=0` to skip evaluation. Both intervals use environment steps.
 
 ```bash

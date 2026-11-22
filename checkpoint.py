@@ -8,8 +8,14 @@ import tools
 
 
 def save(path, agent, trainer):
+    weights = {"agent_state_dict": agent.state_dict()}
+    archive = path.parent / "checkpoints"
+    archive.mkdir(exist_ok=True)
+    _save(archive / f"step_{trainer.step}.pt", weights)
+
+    # Only the rolling checkpoint carries replay and the rest of the training state.
     state = {
-        "agent_state_dict": agent.state_dict(),
+        **weights,
         "optims_state_dict": tools.recursively_collect_optim_state_dict(agent),
         "agent_training": agent.training_state_dict(),
         "trainer": trainer.state_dict(),
@@ -21,6 +27,11 @@ def save(path, agent, trainer):
             "cuda": torch.cuda.get_rng_state(agent.device) if agent.device.type == "cuda" else None,
         },
     }
+    _save(path, state)
+    print(f"Saved checkpoint at step {trainer.step}: {path}")
+
+
+def _save(path, state):
     # Keep the previous checkpoint readable if the process stops during the write.
     temporary = path.with_suffix(".pt.tmp")
     try:
@@ -28,7 +39,6 @@ def save(path, agent, trainer):
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
-    print(f"Saved checkpoint at step {trainer.step}: {path}")
 
 
 def load(path, agent, trainer):
